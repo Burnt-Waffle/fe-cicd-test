@@ -186,7 +186,7 @@ jobs:
           SH_COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=instanceids,Values=$INSTANCE_ID" \
-            --comment "Deploying $IMAGE_URI" \
+            --comment "Deploying frontend to Dev" \
             --parameters commands="echo $ENCODED_SCRIPT | base64 -d > /tmp/deploy.sh && bash /tmp/deploy.sh" \
             --query "Command.CommandId" \
             --output text)
