@@ -96,7 +96,7 @@ jobs:
           echo "Sending deployment command to $INSTANCE_ID..."
           
           # SSM 스크립트 작성
-          COMMANDS=$(cat <<EOF
+          cat <<EOF > deploy.sh
           #!/bin/bash
           exec > >(tee /var/log/deploy.log|logger -t deploy -s 2>/dev/console) 2>&1
           
@@ -176,18 +176,18 @@ jobs:
             else
               echo "No backup image found. Cannot rollback."
             fi
-            
             exit 1
           fi
           EOF
-          )
+          
+          ENCODED_SCRIPT=$(cat deploy.sh | base64 -w 0)
           
           # SSM 명령 전송
           SH_COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=instanceids,Values=$INSTANCE_ID" \
             --comment "Deploying $IMAGE_URI" \
-            --parameters commands="$COMMANDS" \
+            --parameters commands="echo $ENCODED_SCRIPT | base64 -d > /tmp/deploy.sh && bash /tmp/deploy.sh" \
             --query "Command.CommandId" \
             --output text)
             
