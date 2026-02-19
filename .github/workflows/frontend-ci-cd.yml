@@ -269,199 +269,199 @@ jobs:
       repository: ${{ github.repository }}
     secrets: inherit
 
-  # 4. Staging 배포 (main 브랜치 Merge 시)
-  deploy-staging:
-    needs: [check-changes, build-and-push]
-    if: github.event.pull_request.merged == true && github.base_ref == 'main' && needs.check-changes.outputs.should_run == 'true'
-    uses: ./.github/workflows/deploy-asg-rolling.yml
-    with:
-      environment: staging
-      image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:staging-pr-${{ github.event.pull_request.head.sha }}
-      asg_name: "raisedeveloper-frontend-staging-asg"
-      lt_id: "lt-staging-frontend-id" 
-      pr_number: ${{ github.event.pull_request.number }}
-      pr_title: ${{ github.event.pull_request.title }}
-      base_ref: ${{ github.base_ref }}
-      actor: ${{ github.actor }}
-      run_id: ${{ github.run_id }}
-      repository: ${{ github.repository }}
-    secrets: inherit
+  # # 4. Staging 배포 (main 브랜치 Merge 시)
+  # deploy-staging:
+  #   needs: [check-changes, build-and-push]
+  #   if: github.event.pull_request.merged == true && github.base_ref == 'main' && needs.check-changes.outputs.should_run == 'true'
+  #   uses: ./.github/workflows/deploy-asg-rolling.yml
+  #   with:
+  #     environment: staging
+  #     image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:staging-pr-${{ github.event.pull_request.head.sha }}
+  #     asg_name: "raisedeveloper-frontend-staging-asg"
+  #     lt_id: "lt-staging-frontend-id" 
+  #     pr_number: ${{ github.event.pull_request.number }}
+  #     pr_title: ${{ github.event.pull_request.title }}
+  #     base_ref: ${{ github.base_ref }}
+  #     actor: ${{ github.actor }}
+  #     run_id: ${{ github.run_id }}
+  #     repository: ${{ github.repository }}
+  #   secrets: inherit
 
-  # 5. Production 빌드 및 배포 (별도 잡)
-  # FE는 환경변수 때문에 Staging 이미지를 Prod로 승격 불가. 새로 빌드해야 함.
-  build-and-deploy-production:
-    needs: [deploy-staging, check-changes]
-    if: github.event.pull_request.merged == true && github.base_ref == 'main' && needs.check-changes.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # # 5. Production 빌드 및 배포 (별도 잡)
+  # # FE는 환경변수 때문에 Staging 이미지를 Prod로 승격 불가. 새로 빌드해야 함.
+  # build-and-deploy-production:
+  #   needs: [deploy-staging, check-changes]
+  #   if: github.event.pull_request.merged == true && github.base_ref == 'main' && needs.check-changes.outputs.should_run == 'true'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      # pnpm & Node 설정 (빌드 캐시용 아님, Sentry CLI 및 스크립트 실행용)
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24.13.0"
-          cache: "pnpm"
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  #     # pnpm & Node 설정 (빌드 캐시용 아님, Sentry CLI 및 스크립트 실행용)
+  #     - name: Install pnpm
+  #       uses: pnpm/action-setup@v4
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v5
+  #       with:
+  #         node-version: "24.13.0"
+  #         cache: "pnpm"
+  #     - name: Install dependencies
+  #       run: pnpm install --frozen-lockfile
       
-      # Turbo 빌드 캐시 복원  
-      - name: Restore Turbo cache
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.event.pull_request.head.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
+  #     # Turbo 빌드 캐시 복원  
+  #     - name: Restore Turbo cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: .turbo
+  #         key: ${{ runner.os }}-turbo-${{ github.event.pull_request.head.sha }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-turbo-
 
-      # Next.js 빌드 캐시 복원
-      - name: Restore Next.js build cache
-        uses: actions/cache@v4
-        with:
-          path: apps/web/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/**/*.{js,ts,jsx,tsx}', 'packages/**/*.{js,ts,jsx,tsx}') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
-            ${{ runner.os }}-nextjs-
+  #     # Next.js 빌드 캐시 복원
+  #     - name: Restore Next.js build cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: apps/web/.next/cache
+  #         key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/**/*.{js,ts,jsx,tsx}', 'packages/**/*.{js,ts,jsx,tsx}') }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+  #           ${{ runner.os }}-nextjs-
 
-      # 시멘틱 버전 태그 생성
-      - name: Create Semantic Version Tag
-        id: create_tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null || echo "v0.0.0")
-          echo "Current Latest Tag: $LATEST_TAG"
+  #     # 시멘틱 버전 태그 생성
+  #     - name: Create Semantic Version Tag
+  #       id: create_tag
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null || echo "v0.0.0")
+  #         echo "Current Latest Tag: $LATEST_TAG"
 
-          VERSION=${LATEST_TAG#v}
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+  #         VERSION=${LATEST_TAG#v}
+  #         MAJOR=$(echo $VERSION | cut -d. -f1)
+  #         MINOR=$(echo $VERSION | cut -d. -f2)
+  #         PATCH=$(echo $VERSION | cut -d. -f3)
+  #         NEW_PATCH=$((PATCH + 1))
+  #         NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
 
-          echo "New Version to be created: $NEW_VERSION"
+  #         echo "New Version to be created: $NEW_VERSION"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a $NEW_VERSION -m "Production Release $NEW_VERSION
-          PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.number }}
-          Commit: ${{ github.sha }}
-          Actor: ${{ github.actor }}"
-          git push origin $NEW_VERSION
+  #         git config user.name "github-actions[bot]"
+  #         git config user.email "github-actions[bot]@users.noreply.github.com"
+  #         git tag -a $NEW_VERSION -m "Production Release $NEW_VERSION
+  #         PR: #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.number }}
+  #         Commit: ${{ github.sha }}
+  #         Actor: ${{ github.actor }}"
+  #         git push origin $NEW_VERSION
           
-          echo "DEPLOY_TAG=$NEW_VERSION" >> $GITHUB_ENV
-          echo "Tag created: $NEW_VERSION"
+  #         echo "DEPLOY_TAG=$NEW_VERSION" >> $GITHUB_ENV
+  #         echo "Tag created: $NEW_VERSION"
 
-      # Production용 env
-      - name: Create web env for Production
-        shell: bash
-        run: |
-          echo "${{ secrets.WEB_ENV_PROD }}" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_RELEASE=raisedev-web@prod-${{ env.DEPLOY_TAG }}" >> "$GITHUB_ENV"
-          echo "SENTRY_PROJECT=raisedev-prod" >> "$GITHUB_ENV"
+  #     # Production용 env
+  #     - name: Create web env for Production
+  #       shell: bash
+  #       run: |
+  #         echo "${{ secrets.WEB_ENV_PROD }}" >> "$GITHUB_ENV"
+  #         echo "NEXT_PUBLIC_RELEASE=raisedev-web@prod-${{ env.DEPLOY_TAG }}" >> "$GITHUB_ENV"
+  #         echo "SENTRY_PROJECT=raisedev-prod" >> "$GITHUB_ENV"
 
-      # AWS & ECR 설정
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+  #     # AWS & ECR 설정
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+  #         aws-region: ${{ env.AWS_REGION }}
       
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+  #     - name: Login to Amazon ECR
+  #       id: login-ecr
+  #       uses: aws-actions/amazon-ecr-login@v2
 
-      # Sentry Release (Prod)
-      - name: Setup Node & Sentry
-        uses: actions/setup-node@v5
-        with: { node-version: "24.13.0" }
-      - run: npm install -g @sentry/cli
-      - name: Create Sentry Release
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          NEXT_PUBLIC_RELEASE: raisedev-web@prod-${{ env.DEPLOY_TAG }}
-        run: |
-          sentry-cli releases new "$NEXT_PUBLIC_RELEASE"
-          sentry-cli releases set-commits "$NEXT_PUBLIC_RELEASE" --auto || true
+  #     # Sentry Release (Prod)
+  #     - name: Setup Node & Sentry
+  #       uses: actions/setup-node@v5
+  #       with: { node-version: "24.13.0" }
+  #     - run: npm install -g @sentry/cli
+  #     - name: Create Sentry Release
+  #       env:
+  #         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  #         SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+  #         NEXT_PUBLIC_RELEASE: raisedev-web@prod-${{ env.DEPLOY_TAG }}
+  #       run: |
+  #         sentry-cli releases new "$NEXT_PUBLIC_RELEASE"
+  #         sentry-cli releases set-commits "$NEXT_PUBLIC_RELEASE" --auto || true
 
-      # Production Build
-      - name: Build for Production
-        run: pnpm turbo build --filter=web
+  #     # Production Build
+  #     - name: Build for Production
+  #       run: pnpm turbo build --filter=web
 
-      # 모토레포 경로 처리
-      - name: Bundle Artifacts for Production
-        working-directory: apps/web
-        run: |
-          STANDALONE_ROOT=".next/standalone"
+  #     # 모토레포 경로 처리
+  #     - name: Bundle Artifacts for Production
+  #       working-directory: apps/web
+  #       run: |
+  #         STANDALONE_ROOT=".next/standalone"
 
-          if [ -d "$STANDALONE_ROOT/1-team-one-fe/apps/web" ]; then
-            APP_DIR="$STANDALONE_ROOT/1-team-one-fe/apps/web"
-          elif [ -d "$STANDALONE_ROOT/apps/web" ]; then
-            APP_DIR="$STANDALONE_ROOT/apps/web"
-          else
-            echo "ERROR: Cannot find standalone app directory"
-            ls -la $STANDALONE_ROOT
-            exit 1
-          fi
+  #         if [ -d "$STANDALONE_ROOT/1-team-one-fe/apps/web" ]; then
+  #           APP_DIR="$STANDALONE_ROOT/1-team-one-fe/apps/web"
+  #         elif [ -d "$STANDALONE_ROOT/apps/web" ]; then
+  #           APP_DIR="$STANDALONE_ROOT/apps/web"
+  #         else
+  #           echo "ERROR: Cannot find standalone app directory"
+  #           ls -la $STANDALONE_ROOT
+  #           exit 1
+  #         fi
 
-          mkdir -p $APP_DIR/.next
-          cp -r .next/static $APP_DIR/.next/
-          cp -r public $APP_DIR/
+  #         mkdir -p $APP_DIR/.next
+  #         cp -r .next/static $APP_DIR/.next/
+  #         cp -r public $APP_DIR/
           
-          # Dockerfile 복사 (루트에 있는걸 standalone 안으로)
-          cp ../../Dockerfile $STANDALONE_ROOT/Dockerfile
+  #         # Dockerfile 복사 (루트에 있는걸 standalone 안으로)
+  #         cp ../../Dockerfile $STANDALONE_ROOT/Dockerfile
 
-      # Production 이미지 빌드 및 푸시
-      - name: Build and Push Prod Image
-        id: build-prod
-        working-directory: apps/web/.next/standalone
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          TAG: ${{ env.DEPLOY_TAG }}
-        run: |
-          # 시멘틱 버전 태그로 빌드
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
+  #     # Production 이미지 빌드 및 푸시
+  #     - name: Build and Push Prod Image
+  #       id: build-prod
+  #       working-directory: apps/web/.next/standalone
+  #       env:
+  #         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+  #         TAG: ${{ env.DEPLOY_TAG }}
+  #       run: |
+  #         # 시멘틱 버전 태그로 빌드
+  #         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG .
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
           
-          # latest 태그도 업데이트
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$TAG $ECR_REGISTRY/$ECR_REPOSITORY:production-latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:production-latest
+  #         # latest 태그도 업데이트
+  #         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$TAG $ECR_REGISTRY/$ECR_REPOSITORY:production-latest
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:production-latest
           
-          echo "FINAL_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
+  #         echo "FINAL_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
 
-      # 7. Sentry Finalize
-      - name: Finalize Sentry Release
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          NEXT_PUBLIC_RELEASE: raisedev-web@prod-${{ env.DEPLOY_TAG }}
-        run: sentry-cli releases finalize "$NEXT_PUBLIC_RELEASE"
+  #     # 7. Sentry Finalize
+  #     - name: Finalize Sentry Release
+  #       env:
+  #         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  #         SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+  #         NEXT_PUBLIC_RELEASE: raisedev-web@prod-${{ env.DEPLOY_TAG }}
+  #       run: sentry-cli releases finalize "$NEXT_PUBLIC_RELEASE"
 
-    # 6. 실제 Prod 배포 (outputs 전달)
-    outputs:
-      image_uri: ${{ steps.build-prod.outputs.FINAL_IMAGE_URI }}
-      deploy_tag: ${{ env.DEPLOY_TAG }}
+  #   # 6. 실제 Prod 배포 (outputs 전달)
+  #   outputs:
+  #     image_uri: ${{ steps.build-prod.outputs.FINAL_IMAGE_URI }}
+  #     deploy_tag: ${{ env.DEPLOY_TAG }}
 
-  # 7. Production 배포 실행
-  trigger-deploy-prod:
-    needs: build-and-deploy-production
-    uses: ./.github/workflows/deploy-asg-rolling.yml
-    with:
-      environment: production
-      image_uri: ${{ needs.build-and-deploy-production.outputs.image_uri }}
-      asg_name: "raisedeveloper-frontend-production-asg"
-      lt_id: "lt-prod-frontend-id"
-      pr_number: ${{ github.event.pull_request.number }}
-      pr_title: ${{ github.event.pull_request.title }}
-      base_ref: ${{ github.base_ref }}
-      actor: ${{ github.actor }}
-      run_id: ${{ github.run_id }}
-      repository: ${{ github.repository }}
-    secrets: inherit
+  # # 7. Production 배포 실행
+  # trigger-deploy-prod:
+  #   needs: build-and-deploy-production
+  #   uses: ./.github/workflows/deploy-asg-rolling.yml
+  #   with:
+  #     environment: production
+  #     image_uri: ${{ needs.build-and-deploy-production.outputs.image_uri }}
+  #     asg_name: "raisedeveloper-frontend-production-asg"
+  #     lt_id: "lt-prod-frontend-id"
+  #     pr_number: ${{ github.event.pull_request.number }}
+  #     pr_title: ${{ github.event.pull_request.title }}
+  #     base_ref: ${{ github.base_ref }}
+  #     actor: ${{ github.actor }}
+  #     run_id: ${{ github.run_id }}
+  #     repository: ${{ github.repository }}
+  #   secrets: inherit
