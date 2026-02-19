@@ -11,7 +11,6 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REGISTRY: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com
   ECR_REPOSITORY: frontend
 
 concurrency:
@@ -56,8 +55,6 @@ jobs:
     needs: check-changes
     if: (github.event.action == 'opened' || github.event.action == 'synchronize') && needs.check-changes.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    outputs:
-      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -261,7 +258,7 @@ jobs:
     uses: ./.github/workflows/deploy-dev.yml
     with:
       environment: dev
-      image_uri: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:dev-pr-${{ github.event.pull_request.head.sha }}
+      image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:dev-pr-${{ github.event.pull_request.head.sha }}
       instance_tag_name: "Environment"
       instance_tag_value: "dev"
       pr_number: ${{ github.event.pull_request.number }}
@@ -279,7 +276,7 @@ jobs:
     uses: ./.github/workflows/deploy-asg-rolling.yml
     with:
       environment: staging
-      image_uri: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:staging-pr-${{ github.event.pull_request.head.sha }}
+      image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:staging-pr-${{ github.event.pull_request.head.sha }}
       asg_name: "raisedeveloper-frontend-staging-asg"
       lt_id: "lt-staging-frontend-id" 
       pr_number: ${{ github.event.pull_request.number }}
