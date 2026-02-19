@@ -37,7 +37,7 @@ export default function Home() {
         <ul>
            {/* GitHub Secrets에서 잘 넘어왔는지 확인 */}
           <li>
-             <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || "Empty"}
+             <strong>API_BASE_URL:</strong> {process.env.NEXT_PUBLIC_API_BASE_URL || "Empty"}
           </li>
         </ul>
       </div>
