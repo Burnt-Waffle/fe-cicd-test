@@ -253,7 +253,7 @@ jobs:
 
   # 3. Dev 배포 (dev 브랜치 Merge 시)
   deploy-dev:
-    needs: build-and-push
+    needs: check-changes
     if: github.event.pull_request.merged == true && github.base_ref == 'develop'
     uses: ./.github/workflows/deploy-dev.yml
     with:
@@ -271,7 +271,7 @@ jobs:
 
   # # 4. Staging 배포 (main 브랜치 Merge 시)
   # deploy-staging:
-  #   needs: build-and-push
+  #   needs: check-changes
   #   if: github.event.pull_request.merged == true && github.base_ref == 'main'
   #   uses: ./.github/workflows/deploy-asg-rolling.yml
   #   with:
