@@ -269,23 +269,23 @@ jobs:
       repository: ${{ github.repository }}
     secrets: inherit
 
-  # # 4. Staging 배포 (main 브랜치 Merge 시)
-  # deploy-staging:
-  #   needs: check-changes
-  #   if: github.event.pull_request.merged == true && github.base_ref == 'main'
-  #   uses: ./.github/workflows/deploy-asg-rolling.yml
-  #   with:
-  #     environment: staging
-  #     image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:staging-pr-${{ github.event.pull_request.head.sha }}
-  #     asg_name: "raisedeveloper-frontend-staging-asg"
-  #     lt_id: "lt-staging-frontend-id" 
-  #     pr_number: ${{ github.event.pull_request.number }}
-  #     pr_title: ${{ github.event.pull_request.title }}
-  #     base_ref: ${{ github.base_ref }}
-  #     actor: ${{ github.actor }}
-  #     run_id: ${{ github.run_id }}
-  #     repository: ${{ github.repository }}
-  #   secrets: inherit
+  # 4. Staging 배포 (main 브랜치 Merge 시)
+  deploy-staging:
+    needs: check-changes
+    if: github.event.pull_request.merged == true && github.base_ref == 'main'
+    uses: ./.github/workflows/deploy-asg-rolling.yml
+    with:
+      environment: staging
+      image_uri: 624234316947.dkr.ecr.ap-northeast-2.amazonaws.com/frontend:staging-pr-${{ github.event.pull_request.head.sha }}
+      asg_name: "raisedeveloper-frontend-staging-asg"
+      lt_id: "lt-staging-frontend-id"
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_title: ${{ github.event.pull_request.title }}
+      base_ref: ${{ github.base_ref }}
+      actor: ${{ github.actor }}
+      run_id: ${{ github.run_id }}
+      repository: ${{ github.repository }}
+    secrets: inherit
 
   # # 5. Production 빌드 및 배포 (별도 잡)
   # # FE는 환경변수 때문에 Staging 이미지를 Prod로 승격 불가. 새로 빌드해야 함.
